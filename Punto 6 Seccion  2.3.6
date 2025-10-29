@@ -1,0 +1,78 @@
+import sympy as sp
+
+
+# Símbolo y "peso" del producto interno
+
+x = sp.symbols('x', real=True)
+w = sp.sqrt(1 - x**2)                # peso: sqrt(1 - x^2)
+
+theta = sp.symbols('theta', real=True)
+
+def inner(f, g):
+    """Producto interno <f|g> con el peso sqrt(1-x^2), vía x=cos(theta)."""
+    integrand = sp.expand(f.subs(x, sp.cos(theta)) * g.subs(x, sp.cos(theta)) * sp.sin(theta)**2)
+    return sp.integrate(integrand, (theta, 0, sp.pi))
+
+
+# Gram–Schmidt sobre {1, x, x^2, ..., x^n}
+
+def gram_schmidt_polys(n):
+    """Devuelve (monomios, base_ortogonal) hasta grado n con el producto interno 'inner'."""
+    monomios = [x**k for k in range(n+1)]
+    orto = []
+    for k, v in enumerate(monomios):
+        for j in range(k):
+            num = inner(v, orto[j])             # <v|p_j>
+            den = inner(orto[j], orto[j])       # <p_j|p_j>
+            v = sp.simplify(sp.expand(v - (num/den)*orto[j]))
+        orto.append(sp.expand(v))
+    return monomios, orto
+
+
+# Ejecutar para un n elegido
+
+n = 5
+monos, orto = gram_schmidt_polys(n)
+
+#Comparar con Chebyshev U_n(x)
+
+U = [sp.chebyshevu(k, x) for k in range(n+1)]
+
+def monic(p):
+    P = sp.Poly(sp.expand(p), x)
+    return sp.simplify(P.as_expr()/P.LC())
+
+U_monic = [monic(Uk) for Uk in U]
+
+# Diferencias: deberían dar 0 si son iguales hasta un factor líder
+diffs = [sp.simplify(sp.expand(orto[k] - U_monic[k])) for k in range(n+1)]
+
+
+# Verificación de ortogonalidad (matriz de Gram)
+
+G = sp.Matrix([[sp.simplify(inner(orto[i], orto[j])) for j in range(n+1)] for i in range(n+1)])
+G_on = sp.Matrix([[sp.simplify(inner(ortonormal[i], ortonormal[j])) for j in range(n+1)] for i in range(n+1)])
+
+
+#Mostrar resultados principales
+
+print("Base monomial:")
+for k in range(n+1):
+    print(f"  e{k}(x) = {monos[k]}")
+
+print("\nBase ORTOGONAL obtenida (monica):")
+for k in range(n+1):
+    print(f"  p{k}(x) = {orto[k]}")
+
+
+print("\nChebyshev de 2ª especie U_k(x) y su versión MÓNICA:")
+for k in range(n+1):
+    print(f"  U{k}(x)        = {sp.expand(U[k])}")
+    print(f"  U{k}_monic(x)  = {sp.expand(U_monic[k])}")
+    print(f"  p{k} - U{k}_monic = {diffs[k]}\n")
+
+print("\nMatriz de Gram de {p_k} (debe salir diagonal):")
+sp.pprint(G)
+
+print("\nMatriz de Gram de {q_k} ortonormal (debe salir identidad):")
+sp.pprint(G_on)
