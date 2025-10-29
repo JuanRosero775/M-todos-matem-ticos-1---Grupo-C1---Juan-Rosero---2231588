@@ -1,0 +1,94 @@
+import sympy as sp
+
+# 1) Dimensión y rangos de índices
+dim = 2
+I = range(dim)
+
+# 2) Matriz de cambio de base L y su inversa (L^{-1})
+a,b,c,d = sp.symbols('a b c d', nonzero=True)
+L   = sp.Matrix([[a, b],
+                 [c, d]])        # L^{i'}{}_i
+Lin = L.inv()                    # (L^{-1})^{i}{}_{i'}
+
+# Acceso cómodo: L[i',i] y Lin[i,i']
+def L_up(ip,i):    return L[ip, i]
+def Lin_up(i,ip):  return Lin[i, ip]
+
+# 3) Tensores simbólicos A_{ijk} (covariante) y B^{lmnp} (contravariante)
+A = sp.symarray('A', (dim, dim, dim))          # A[i,j,k]
+B = sp.symarray('B', (dim, dim, dim, dim))     # B[l,m,n,p]  (aquí l,m,n,p = índices arriba)
+
+# 4) Transformaciones de A y B
+#    A'_{i'j'k'} = (L^{-1})^r_{i'} (L^{-1})^s_{j'} (L^{-1})^t_{k'} A_{rst}
+A_prime = sp.symarray('Aprime', (dim, dim, dim))
+for ip in I:
+    for jp in I:
+        for kp in I:
+            s = 0
+            for r in I:
+                for s2 in I:
+                    for t in I:
+                        s += Lin_up(r,ip)*Lin_up(s2,jp)*Lin_up(t,kp)*A[r,s2,t]
+            A_prime[ip,jp,kp] = sp.simplify(s)
+
+#    B'^{j'k'n'p'} = L^{j'}_u L^{k'}_v L^{n'}_w L^{p'}_x B^{uvwx}
+B_prime = sp.symarray('Bprime', (dim, dim, dim, dim))
+for jp in I:
+    for kp in I:
+        for np_ in I:
+            for pp in I:
+                s = 0
+                for u in I:
+                    for v in I:
+                        for w in I:
+                            for x in I:
+                                s += L_up(jp,u)*L_up(kp,v)*L_up(np_,w)*L_up(pp,x)*B[u,v,w,x]
+                B_prime[jp,kp,np_,pp] = sp.simplify(s)
+
+# 5) Construir T y T' por contracción en j,k:
+#    T_{i}{}^{np} = A_{ijk} B^{jknp}
+T = sp.symarray('T', (dim, dim, dim))  # T[i,n,p]
+for i in I:
+    for n in I:
+        for p in I:
+            s = 0
+            for j in I:
+                for k in I:
+                    s += A[i,j,k]*B[j,k,n,p]
+            T[i,n,p] = sp.simplify(s)
+
+#    T'_{i'}{}^{n'p'} = A'_{i'j'k'} B'^{j'k'n'p'}
+Tprime_direct = sp.symarray('TprimeDirect', (dim, dim, dim))
+for ip in I:
+    for np_ in I:
+        for pp in I:
+            s = 0
+            for jp in I:
+                for kp in I:
+                    s += A_prime[ip,jp,kp]*B_prime[jp,kp,np_,pp]
+            Tprime_direct[ip,np_,pp] = sp.simplify(sp.together(s))
+
+# 6) Ley de transformación esperada para un tensor mixto (1,2):
+#    T'_{i'}{}^{n'p'} = (L^{-1})^{r}{}_{i'} L^{n'}{}_{w} L^{p'}{}_{x} T_{r}{}^{wx}
+Tprime_expected = sp.symarray('TprimeExpected', (dim, dim, dim))
+for ip in I:
+    for np_ in I:
+        for pp in I:
+            s = 0
+            for r in I:
+                for w in I:
+                    for x in I:
+                        s += Lin_up(r,ip)*L_up(np_,w)*L_up(pp,x)*T[r,w,x]
+            Tprime_expected[ip,np_,pp] = sp.simplify(sp.together(s))
+
+# 7) Comprobación: las diferencias deben ser cero componente a componente
+ok = True
+for ip in I:
+    for np_ in I:
+        for pp in I:
+            diff = sp.simplify(sp.factor(Tprime_direct[ip,np_,pp] - Tprime_expected[ip,np_,pp]))
+            if diff != 0:
+                ok = False
+                print(f"Falla en (i',n',p')=({ip},{np_},{pp}). Diferencia:", diff)
+
+print("¿T se transforma como tensor mixto (1,2)? ->", ok)
