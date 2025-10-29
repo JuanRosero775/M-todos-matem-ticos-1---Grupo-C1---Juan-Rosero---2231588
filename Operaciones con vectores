@@ -1,0 +1,146 @@
+# Ejercicio 6 seccion 1.2.7
+# ---------------------------------------------------
+# Vectores:
+#   a = ê1 + 2ê2 + 3ê3
+#   b = 4ê1 + 5ê2 + 6ê3
+#   c = 3ê1 + 2ê2 + ê3
+#   d = 6ê1 + 5ê2 + 4ê3
+#
+# Objetivos:
+# (a) Sumas: a+b+c+d, a+b-c-d, a-b+c-d, -a+b-c+d
+# (b) Ángulos entre a,b,c,d y los vectores base ê1, ê2, ê3
+# (c) Magnitudes |a|,|b|,|c|,|d|
+# (d) Ángulo entre a y b; entre c y d
+# (e) Proyección de a sobre b
+# (f) ¿a,b,c,d son coplanares? (revisando el rango del span)
+# (g) (a+b)·(c+d)
+# (h) a×b, b×c, c×d y ángulos que cada uno forma con d
+# (i) c · (a × b)  (producto triple escalar)
+
+import sympy as sp
+import numpy as np
+import matplotlib.pyplot as plt
+from math import degrees
+import pandas as pd
+from IPython.display import display # Use standard display
+
+#  Definiciones
+e1 = sp.Matrix([1,0,0])
+e2 = sp.Matrix([0,1,0])
+e3 = sp.Matrix([0,0,1])
+
+a = sp.Matrix([1,2,3])
+b = sp.Matrix([4,5,6])
+c = sp.Matrix([3,2,1])
+d = sp.Matrix([6,5,4])
+
+def norm(v):
+    return sp.sqrt(v.dot(v))
+
+def angle(v, w):  # ángulo entre v y w en radianes
+    nv, nw = norm(v), norm(w)
+    # Evitar división por cero
+    if nv == 0 or nw == 0:
+        return sp.nan
+    cosang = sp.simplify((v.dot(w)) / (nv*nw))
+    cosang = sp.N(cosang)
+    if cosang > 1: cosang = 1
+    if cosang < -1: cosang = -1
+    return sp.acos(cosang)
+
+def proj_u_on_v(u, v):
+    # Proyección vectorial de u sobre v:  proj_v(u) = ((u·v)/(v·v)) v
+    denom = v.dot(v)
+    if denom == 0:
+        return sp.Matrix([sp.nan, sp.nan, sp.nan])
+    return sp.simplify((u.dot(v)/denom) * v)
+
+# (a) Sumas pedidas
+sum1 = a + b + c + d
+sum2 = a + b - c - d
+sum3 = a - b + c - d
+sum4 = -a + b - c + d
+
+print("(a) Sumas:")
+print("a+b+c+d   =", sum1.T)
+print("a+b-c-d   =", sum2.T)
+print("a-b+c-d   =", sum3.T)
+print("-a+b-c+d  =", sum4.T)
+
+# (b) Ángulos con los vectores base
+angles_basis = []
+vecs = {'a':a, 'b':b, 'c':c, 'd':d}
+basis = {'e1':e1, 'e2':e2, 'e3':e3}
+
+print("\n(b) Ángulos (grados) con la base:")
+for name_v, v in vecs.items():
+    row = {'vector': name_v}
+    for name_e, e in basis.items():
+        ang = angle(v, e)
+        row[f'angle_{name_e}_deg'] = float(degrees(sp.N(ang)))
+    angles_basis.append(row)
+    print(row)
+
+df_angles_basis = pd.DataFrame(angles_basis)
+display(df_angles_basis) # Use standard display
+
+# (c) Magnitudes
+magnitudes = {name: sp.N(norm(v)) for name, v in vecs.items()}
+print("\n(c) Magnitudes:")
+for name, val in magnitudes.items():
+    print(f"|{name}| =", val)
+
+# (d) Ángulos entre a y b; entre c y d
+ang_ab = angle(a,b)
+ang_cd = angle(c,d)
+print("\n(d) Ángulos entre pares (grados):")
+print("∠(a,b) =", float(degrees(sp.N(ang_ab))))
+print("∠(c,d) =", float(degrees(sp.N(ang_cd))))
+
+# (e) Proyección de a sobre b
+proj_a_on_b = proj_u_on_v(a,b)
+print("\n(e) Proyección de a sobre b =", proj_a_on_b.T)
+
+# (f) Coplanaridad
+M = sp.Matrix.hstack(a,b,c,d)
+rank_span = M.rank()
+coplanar = (rank_span <= 2)
+print("\n(f) ¿a,b,c,d coplanares?")
+print("rango(span{a,b,c,d}) =", rank_span, "→", "Sí" if coplanar else "No")
+
+#(g) (a+b)·(c+d)
+dot_val = (a+b).dot(c+d)
+print("\n(g) (a+b)·(c+d) =", dot_val)
+
+# (h) Productos cruz y ángulos con d
+cross_list = {
+    'a×b': a.cross(b),
+    'b×c': b.cross(c),
+    'c×d': c.cross(d)
+}
+
+print("\n(h) Cruz y ángulos con d (grados):")
+for name, v in cross_list.items():
+    ang = angle(v, d)
+    ang_deg = float(degrees(sp.N(ang))) if ang.is_real else float('nan')
+    print(f"{name} = {v.T} ;  ∠({name}, d) = {ang_deg:.2f}°")
+
+# (i) Producto triple escalar
+triple = c.dot(a.cross(b))
+print("\n(i) c · (a × b) =", triple)
+
+#  Gráfico 3D de a,b,c,d
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+# Ejes
+lim = 7
+ax.set_xlim(0, lim); ax.set_ylim(0, lim); ax.set_zlim(0, lim)
+ax.set_xlabel('x'); ax.set_ylabel('y'); ax.set_zlabel('z')
+# Vectores desde el origen
+def draw_vector(ax, vec, label):
+    ax.quiver(0,0,0, float(vec[0]), float(vec[1]), float(vec[2]), length=1, normalize=False)
+    ax.text(float(vec[0]), float(vec[1]), float(vec[2]), f' {label}')
+for name, vec in vecs.items():
+    draw_vector(ax, vec, name)
+ax.set_title("Vectores a, b, c, d desde el origen")
+plt.show()
