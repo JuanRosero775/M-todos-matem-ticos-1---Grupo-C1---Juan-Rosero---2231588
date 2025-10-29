@@ -1,0 +1,85 @@
+# Ejercicio 3 seccion 1.1.6
+# Demostración simbólica de que g = (a + b + c)/3 es el centroide
+
+import sympy as sp
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Variables simbólicas}
+ax, ay, bx, by, cx, cy = sp.symbols('ax ay bx by cx cy', real=True)
+
+a = sp.Matrix([ax, ay])
+b = sp.Matrix([bx, by])
+c = sp.Matrix([cx, cy])
+
+# Puntos medios y rectas de medianas
+M_bc = (b + c)/2      # punto medio del lado BC
+M_ca = (c + a)/2      # punto medio del lado CA
+
+# Recta paramétrica desde A hacia M_bc: A + s(M_bc - A)
+s = sp.symbols('s', real=True)
+lineA = a + s*(M_bc - a)
+
+# Recta paramétrica desde B hacia M_ca: B + t(M_ca - B)
+t = sp.symbols('t', real=True)
+lineB = b + t*(M_ca - b)
+
+# Intersección de medianas
+sol = sp.solve(sp.Eq(lineA, lineB), (s, t), dict=True)[0]
+s_inter, t_inter = sp.simplify(sol[s]), sp.simplify(sol[t])
+
+intersection = sp.simplify(lineA.subs(s, s_inter))
+
+# Centroide teórico y comprobación simbólica
+centroid_formula = sp.simplify((a + b + c)/3)
+check_equal = sp.simplify(intersection - centroid_formula)
+
+print("Parámetro s donde se intersectan las medianas =", s_inter)
+print("Parámetro t donde se intersectan las medianas =", t_inter)
+print("\nIntersección simbólica de medianas =", intersection.T)
+print("Centroide (a+b+c)/3 =", centroid_formula.T)
+print("Diferencia (intersección - centroide) =", check_equal.T, "  (debe ser (0,0))")
+
+# Ejemplo numérico y figura
+
+# valores para visualizar
+subs_vals = {
+    ax: 1, ay: 2,
+    bx: 4, by: 1,
+    cx: -1, cy: 3
+}
+
+A = np.array(a.subs(subs_vals), dtype=float).reshape(2)
+B = np.array(b.subs(subs_vals), dtype=float).reshape(2)
+C = np.array(c.subs(subs_vals), dtype=float).reshape(2)
+G = np.array(centroid_formula.subs(subs_vals), dtype=float).reshape(2)
+MbC = np.array(M_bc.subs(subs_vals), dtype=float).reshape(2)
+McA = np.array(M_ca.subs(subs_vals), dtype=float).reshape(2)
+
+fig = plt.figure()
+axp = fig.add_subplot(111)
+
+# Triángulo
+axp.plot([A[0], B[0], C[0], A[0]], [A[1], B[1], C[1], A[1]])
+
+# segmentos A->M_bc y B->M_ca y C->M_ab
+M_ab = (A + B)/2.0
+axp.plot([A[0], MbC[0]], [A[1], MbC[1]])
+axp.plot([B[0], McA[0]], [B[1], McA[1]])
+axp.plot([C[0], M_ab[0]], [C[1], M_ab[1]])
+# Centroide
+axp.scatter([G[0]],[G[1]])
+
+
+axp.text(A[0],A[1]," A")
+axp.text(B[0],B[1]," B")
+axp.text(C[0],C[1]," C")
+axp.text(G[0],G[1]," G")
+axp.text(MbC[0],MbC[1]," M_bc")
+axp.text(McA[0],McA[1]," M_ca")
+axp.text(M_ab[0],M_ab[1]," M_ab")
+
+axp.set_aspect('equal', 'box')
+axp.set_title("Triángulo, medianas e intersección (centroide)")
+plt.show()
+
