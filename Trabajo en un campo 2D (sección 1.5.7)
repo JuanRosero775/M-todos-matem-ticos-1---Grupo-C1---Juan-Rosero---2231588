@@ -1,0 +1,33 @@
+# Objetivo: Calcular el trabajo de un campo 2D F = (-y/(x^2+y^2),  x/(x^2+y^2)) a lo largo de arcos del círculo unidad r(θ)=(cosθ, sinθ).
+import sympy as sp
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Definiciones simbólicas
+theta = sp.symbols('theta', real=True)              # parámetro angular θ
+x = sp.Function('x')(theta)                         # x(θ)
+y = sp.Function('y')(theta)                         # y(θ)
+
+# Parametrización del círculo unidad r(θ) = (cosθ, sinθ)
+x_expr = sp.cos(theta)
+y_expr = sp.sin(theta)
+
+# Campo F(x,y) = (Fx, Fy)
+x_sym, y_sym = sp.symbols('x_sym y_sym', real=True)
+Fx = -y_sym/(x_sym**2 + y_sym**2)
+Fy =  x_sym/(x_sym**2 + y_sym**2)
+
+# 2) Sustitución sobre la trayectoria
+# F(r(θ))
+Fx_on_path = sp.simplify(Fx.subs({x_sym: x_expr, y_sym: y_expr}))
+Fy_on_path = sp.simplify(Fy.subs({x_sym: x_expr, y_sym: y_expr}))
+
+# r'(θ) = dr/dθ
+dx_dtheta = sp.diff(x_expr, theta)
+dy_dtheta = sp.diff(y_expr, theta)
+
+# Integrando: F(r(θ)) · r'(θ)
+integrand = sp.simplify(Fx_on_path*dx_dtheta + Fy_on_path*dy_dtheta)
+
+Fx_on_path, Fy_on_path, dx_dtheta, dy_dtheta, integrand
+
