@@ -1,0 +1,119 @@
+import sympy as sp
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from IPython.display import display
+
+from math import isclose
+
+# Definiciones básicas y producto interno
+x = sp.symbols('x', real=True)
+
+def inner_product(f, g):
+    """
+    Producto interno ⟨f|g⟩ = ∫_{-1}^1 f(x) g(x) dx
+    Devuelve una expresión exacta de SymPy.
+    """
+    return sp.integrate(sp.simplify(f*g), (x, -1, 1))
+
+# (a) La base de monomios no es ortogonal
+
+
+monomios = [x**k for k in range(6)]  # 1, x, x^2, ..., x^5
+
+# Matriz de Gram G_ij = ⟨x^i | x^j⟩
+G = sp.Matrix([[inner_product(monomios[i], monomios[j]) for j in range(len(monomios))]
+               for i in range(len(monomios))])
+
+# Pasamos a DataFrame para visualizar mejor
+G_df = pd.DataFrame([[sp.simplify(G[i, j]) for j in range(G.shape[1])] for i in range(G.shape[0])],
+                    index=[f"x^{i}" for i in range(len(monomios))],
+                    columns=[f"x^{j}" for j in range(len(monomios))])
+
+display(G_df)
+
+
+# Explicación breve en consola
+print("INCISO (a) — Observa la matriz de Gram en la tabla enviada.")
+print("Si la base fuera ortogonal, todos los elementos fuera de la diagonal serían 0.")
+print("Aquí aparecen entradas no nulas cuando i+j es par (por la simetría de la integral),")
+print("por lo que {1, x, x^2, ...} NO es una base ortogonal con este producto interno.\n")
+
+# (b) Ortogonalización por Gram–Schmidt (Legendre)
+
+def gram_schmidt(functions):
+    """
+    Gram–Schmidt para funciones con el producto interno 'inner_product'.
+    Devuelve una lista de funciones ortogonales (no normalizadas).
+    """
+    ortho = []
+    for f in functions:
+        g = sp.expand(f)
+        for h in ortho:
+            # proyectamos f sobre h y restamos
+            coef = inner_product(f, h) / inner_product(h, h)
+            g = sp.expand(g - coef*h)
+        ortho.append(sp.simplify(g))
+    return ortho
+
+# Construir monomios hasta grado 9 para obtener 10 polinomios ortogonales
+monomios_0_9 = [x**k for k in range(10)]
+ortho_raw = gram_schmidt(monomios_0_9)
+
+# Normalizar con la convención de Legendre: P_n(1) = 1
+def normalize_legendre_like(p):
+    val_at_1 = sp.simplify(sp.N(p.subs(x, 1)))
+    # Evitar división por cero (no debe ocurrir aquí)
+    if isclose(float(val_at_1), 0.0, abs_tol=1e-14):
+        return sp.simplify(p)
+    return sp.simplify(p/val_at_1)
+
+P = [normalize_legendre_like(p) for p in ortho_raw]  # Los Legendre
+
+# Verificación: comparar con sympy.legendre(n, x) (debe coincidir exactamente)
+coinciden = [sp.simplify(P[n] - sp.legendre(n, x)) == 0 for n in range(10)]
+
+# Construir la matriz de Gram de los P_n para verificar ortogonalidad
+G_leg = sp.Matrix([[sp.simplify(inner_product(P[i], P[j])) for j in range(10)]
+                   for i in range(10)])
+G_leg_df = pd.DataFrame([[G_leg[i, j] for j in range(G_leg.shape[1])] for i in range(G_leg.shape[0])],
+                        index=[f"P_{i}" for i in range(10)],
+                        columns=[f"P_{j}" for j in range(10)])
+
+display(G_leg_df)
+
+
+# Salidas de texto con las fórmulas explícitas
+
+print("INCISO (b) — Primeros 10 polinomios obtenidos por Gram–Schmidt (normalizados con P_n(1)=1):\n")
+for n, p in enumerate(P):
+    print(f"P_{n}(x) =", sp.simplify(p))
+
+print("\n¿Coinciden con sympy.legendre(n, x)?")
+for n, ok in enumerate(coinciden):
+    print(f"  n={n}: {'Sí' if ok else 'No'}")
+
+# Gráficas
+
+# 1) Monomios vs. productos internos no ortogonales
+xs = np.linspace(-1, 1, 400)
+fig1 = plt.figure()
+for k in range(4):
+    y = [float(sp.N((x**k).subs({x: t}))) for t in xs]
+    plt.plot(xs, y, label=f"$x^{k}$")
+plt.title("Primeros monomios $1, x, x^2, x^3$ en [-1,1]")
+plt.xlabel("x")
+plt.ylabel("valor")
+plt.legend()
+plt.show()
+
+# 2) Primeros 5 polinomios de Legendre
+fig2 = plt.figure()
+for n in range(5):
+    y = [float(sp.N(P[n].subs({x: t}))) for t in xs]
+    plt.plot(xs, y, label=f"$P_{n}(x)$")
+plt.title("Polinomios de Legendre $P_0$ a $P_4$ en [-1,1]")
+plt.xlabel("x")
+plt.ylabel("valor")
+plt.legend()
+plt.show()
